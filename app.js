@@ -198,7 +198,7 @@
     openModal("Saldo inicial da conta Caixa",'<form id="openingBalanceForm"><p class="muted" style="font-size:12px;line-height:1.5">Informe o saldo da conta na data em que você começar a usar o aplicativo. Os lançamentos posteriores serão somados ou descontados desse valor.</p><div class="field"><label for="openingBalance">Saldo inicial (R$)</label><input id="openingBalance" inputmode="decimal" value="'+String(account.opening_balance||0).replace(".",",")+'" required></div><div class="form-actions"><button class="btn btn-quiet" type="button" data-action="close-modal">Cancelar</button><button class="btn btn-primary" type="submit">Salvar saldo</button></div></form>');
     $("openingBalanceForm").addEventListener("submit",async e=>{
       e.preventDefault();
-      const raw=$("openingBalance").value.trim().replace(/\\s/g,"").replace(/\\./g,"").replace(",",".");
+      const raw=$("openingBalance").value.trim().replace(/\s/g,"").replace(/\./g,"").replace(",",".");
       const amount=Number(raw);
       if(!Number.isFinite(amount)){toast("Informe um saldo válido.");return;}
       const btn=e.currentTarget.querySelector('button[type="submit"]');btn.disabled=true;btn.textContent="Salvando...";
