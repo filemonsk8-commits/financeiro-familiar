@@ -87,3 +87,49 @@ td{font-size:13px;padding:13px 10px}
  .text-button{font-size:14px}
  .app-footer{font-size:11px}
 }
+
+
+/* Leitura confortável: reforço de tamanho em toda a interface */
+html{font-size:16px}
+body{font-size:16px;line-height:1.5}
+.auth-card>p,.setup-card>p,.welcome-row p,.page-heading p,.panel-head p,.setting-card p{font-size:15px;line-height:1.55}
+.form-stack label,.field,.field label{font-size:15px}
+.nav-item{font-size:15px;min-height:46px}
+.stat-top{font-size:14px}
+.stat-value{font-size:28px;line-height:1.25}
+.stat-foot{font-size:13px}
+.panel-head h3{font-size:17px}
+th{font-size:12px}
+td{font-size:14px}
+.sub-cell{font-size:12px}
+.tag{font-size:12px}
+.bill-info strong,.bill-amount{font-size:14px}
+.bill-info span,.bill-amount small{font-size:12px}
+.page-heading h2,.welcome-row h2{font-size:22px}
+.btn{font-size:15px}
+.text-button{font-size:15px}
+.notice{font-size:14px;line-height:1.55}
+.setting-card h3{font-size:17px}
+.app-footer{font-size:13px}
+@media(max-width:760px){
+ body{font-size:16px}
+ .auth-card,.setup-card{padding:27px 22px}
+ .auth-card h1,.setup-card h1{font-size:26px}
+ .auth-card>p,.setup-card>p{font-size:16px}
+ .topbar h1{font-size:21px}
+ .welcome-row h2,.page-heading h2{font-size:23px}
+ .welcome-row p,.page-heading p{font-size:15px}
+ .stat-top{font-size:13px}
+ .stat-value{font-size:25px}
+ .stat-foot{font-size:13px}
+ .panel-head h3{font-size:17px}
+ th{font-size:12px}
+ td{font-size:14px;padding:14px 10px}
+ .sub-cell{font-size:12px}
+ .nav-item{font-size:16px;min-height:49px}
+ .field label,.form-stack label{font-size:15px}
+ .field input,.field select,.field textarea,.form-stack input,.form-stack select{font-size:16px;min-height:50px}
+ .btn{font-size:16px;min-height:46px}
+ .text-button{font-size:15px}
+ .app-footer{font-size:12px}
+}
