@@ -5,7 +5,7 @@
   const client = window.supabase.createClient(cfg.supabaseUrl, cfg.supabasePublishableKey, {
     auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
   });
-  const state = { user:null, household:null, membership:null, accounts:[], categories:[], transactions:[], bills:[], view:"home", signup:false };
+  const state = { user:null, household:null, membership:null, accounts:[], categories:[], transactions:[], bills:[], view:"home", signup:false, workspaceUserId:null, workspaceLoadPromise:null };
   const money = new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"});
   const dateToday = () => {
     const d = new Date();
@@ -38,15 +38,26 @@
     render();
   }
   async function loadWorkspace() {
-    const {data:membership,error} = await client.from("household_members").select("household_id,role").eq("user_id",state.user.id).maybeSingle();
-    if(error) throw error;
-    if(!membership) { showSetup(); return; }
-    state.membership=membership;
-    const {data:household,error:houseError}=await client.from("households").select("id,name,currency").eq("id",membership.household_id).single();
-    if(houseError) throw houseError;
-    state.household=household;
-    await loadData();
-    showApp();
+    if(!state.user) return;
+    const userId=state.user.id;
+    if(state.workspaceUserId===userId) return;
+    if(state.workspaceLoadPromise) return state.workspaceLoadPromise;
+    state.workspaceLoadPromise=(async()=>{
+      const {data:membership,error} = await client.from("household_members").select("household_id,role").eq("user_id",userId).maybeSingle();
+      if(error) throw error;
+      if(!membership) {
+        state.membership=null; state.household=null; state.workspaceUserId=userId; showSetup(); return;
+      }
+      state.membership=membership;
+      const {data:household,error:houseError}=await client.from("households").select("id,name,currency").eq("id",membership.household_id).single();
+      if(houseError) throw houseError;
+      state.household=household;
+      await loadData();
+      state.workspaceUserId=userId;
+      showApp();
+    })();
+    try { await state.workspaceLoadPromise; }
+    finally { state.workspaceLoadPromise=null; }
   }
   async function loadData() {
     const id=state.household.id;
@@ -283,14 +294,26 @@
   $("setupSignout").addEventListener("click",signOut);$("signoutButton").addEventListener("click",signOut);
   $("closeModal").addEventListener("click",closeModal);$("modalBackdrop").addEventListener("click",e=>{if(e.target===$("modalBackdrop"))closeModal();});
   $("mobileMenu").addEventListener("click",()=>$("sidebar").classList.toggle("open"));
-  client.auth.onAuthStateChange(async(_event,session)=>{
-    if(session){state.user=session.user;try{await loadWorkspace();}catch(err){showAuth();setNotice("authMessage","Erro ao carregar seus dados: "+err.message,"error");}}
-    else{state.user=null;showAuth();}
+  // Não aguarde chamadas do Supabase dentro do callback de autenticação.
+  // A fila de microtask evita reentrância e loadWorkspace elimina cargas duplicadas.
+  client.auth.onAuthStateChange((_event,session)=>{
+    Promise.resolve().then(async()=>{
+      if(session){
+        state.user=session.user;
+        try{await loadWorkspace();}
+        catch(err){showAuth();setNotice("authMessage","Erro ao carregar seus dados: "+err.message,"error");}
+      }else{
+        state.user=null;state.household=null;state.membership=null;state.workspaceUserId=null;showAuth();
+      }
+    });
   });
   client.auth.getSession().then(async({data,error})=>{
     if(error){setNotice("authMessage",error.message,"error");return;}
-    if(data.session){state.user=data.session.user;try{await loadWorkspace();}catch(err){showAuth();setNotice("authMessage","Erro ao carregar seus dados: "+err.message,"error");}}
-    else showAuth();
+    if(data.session){
+      state.user=data.session.user;
+      try{await loadWorkspace();}
+      catch(err){showAuth();setNotice("authMessage","Erro ao carregar seus dados: "+err.message,"error");}
+    }else showAuth();
   });
   if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));}
 })();
