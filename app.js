@@ -135,7 +135,7 @@
     const isOwner=state.membership && state.membership.role==="owner";
     return heading("Configurações","Dados da conta e compartilhamento familiar.")+
       '<div class="settings-grid"><section class="setting-card"><h3>Espaço familiar</h3><p><strong>'+escapeHtml(state.household.name)+'</strong><br>Moeda: Real brasileiro (BRL)<br>Seu perfil: '+(isOwner?"Responsável":"Membro")+'</p></section>'+
-      '<section class="setting-card"><h3>Conta conectada</h3><p>'+escapeHtml(state.user.email)+'<br>Dados sincronizados pelo Supabase. A conexão bancária automática com a Caixa ainda não está ativa.</p></section>'+
+      '<section class="setting-card"><h3>Conta conectada</h3><p>'+escapeHtml(state.user.email)+'<br>Dados sincronizados pelo Supabase. A conexão bancária automática com a Caixa ainda não está ativa.</p><p>Saldo inicial cadastrado: <strong>'+fmtMoney(state.accounts.reduce((sum,a)=>sum+Number(a.opening_balance||0),0))+'</strong></p><button class="btn btn-quiet btn-small" data-action="edit-opening-balance">Ajustar saldo inicial</button></section>'+
       '<section class="setting-card"><h3>Compartilhar com a segunda pessoa</h3><p>Gere um código de uso único com validade de 7 dias. A outra pessoa deve criar sua própria conta e informar esse código.</p>'+(isOwner?'<button class="btn btn-primary" data-action="create-invite">Gerar código de convite</button><div id="inviteResult"></div>':'<p>Peça o código ao responsável pelo espaço familiar.</p>')+'</section>'+
       '<section class="setting-card"><h3>Segurança e privacidade</h3><p>Não compartilhe sua senha. O código de convite dá acesso ao espaço familiar e deve ser enviado somente à pessoa autorizada. Nunca informe senha bancária ou código de autenticação da Caixa.</p><button class="btn btn-quiet btn-small" data-action="refresh">Sincronizar agora</button></section>'+
       '</div>';
@@ -163,7 +163,7 @@
       '<div class="field"><label for="txCategory">Categoria</label><select id="txCategory" name="category_id"><option value="">Sem categoria</option>'+categoryOptions("expense")+'</select></div>'+
       '<div class="field"><label for="txAccount">Conta</label><select id="txAccount" name="account_id">'+state.accounts.map(a=>'<option value="'+a.id+'">'+escapeHtml(a.name)+'</option>').join("")+'</select></div>'+
       '<div class="field"><label for="txDate">Data</label><input id="txDate" name="occurred_at" type="date" value="'+dateToday()+'" required></div>'+
-      '<div class="field"><label for="txPayment">Forma de pagamento</label><select id="txPayment" name="payment_method"><option value="pix">Pix</option><option value="debit">Débito</option><option value="cash">Dinheiro</option><option value="transfer">Transferência</option><option value="boleto">Boleto</option><option value="other">Outro</option></select></div>'+
+      '<div class="field"><label for="txPayment">Forma de pagamento</label><select id="txPayment" name="payment_method"><option value="pix">Pix</option><option value="debit">Débito</option><option value="cash">Dinheiro</option><option value="bank_transfer">Transferência</option><option value="boleto">Boleto</option><option value="other">Outro</option></select></div>'+
       '<div class="field full"><label for="txNotes">Observação (opcional)</label><textarea id="txNotes" name="notes" rows="2"></textarea></div></div>'+
       '<div class="form-actions"><button class="btn btn-quiet" type="button" data-action="close-modal">Cancelar</button><button class="btn btn-primary" type="submit">Salvar lançamento</button></div></form>');
     $("txKind").addEventListener("change",e=>{$("txCategory").innerHTML='<option value="">Sem categoria</option>'+categoryOptions(e.target.value);});
@@ -191,6 +191,21 @@
     const {error}=await client.from("transactions").insert(payload);
     if(error){btn.disabled=false;btn.textContent="Salvar lançamento";toast("Erro ao salvar: "+error.message);return;}
     closeModal();toast("Lançamento salvo e sincronizado.");await refresh();
+  }
+  function openingBalanceForm() {
+    const account=state.accounts[0];
+    if(!account){toast("Nenhuma conta ativa foi encontrada.");return;}
+    openModal("Saldo inicial da conta Caixa",'<form id="openingBalanceForm"><p class="muted" style="font-size:12px;line-height:1.5">Informe o saldo da conta na data em que você começar a usar o aplicativo. Os lançamentos posteriores serão somados ou descontados desse valor.</p><div class="field"><label for="openingBalance">Saldo inicial (R$)</label><input id="openingBalance" inputmode="decimal" value="'+String(account.opening_balance||0).replace(".",",")+'" required></div><div class="form-actions"><button class="btn btn-quiet" type="button" data-action="close-modal">Cancelar</button><button class="btn btn-primary" type="submit">Salvar saldo</button></div></form>');
+    $("openingBalanceForm").addEventListener("submit",async e=>{
+      e.preventDefault();
+      const raw=$("openingBalance").value.trim().replace(/\\s/g,"").replace(/\\./g,"").replace(",",".");
+      const amount=Number(raw);
+      if(!Number.isFinite(amount)){toast("Informe um saldo válido.");return;}
+      const btn=e.currentTarget.querySelector('button[type="submit"]');btn.disabled=true;btn.textContent="Salvando...";
+      const {error}=await client.from("financial_accounts").update({opening_balance:amount}).eq("id",account.id).eq("household_id",state.household.id);
+      if(error){btn.disabled=false;btn.textContent="Salvar saldo";toast("Erro ao atualizar: "+error.message);return;}
+      closeModal();toast("Saldo inicial atualizado.");await refresh();
+    });
   }
   async function saveBill(e) {
     e.preventDefault(); const amount=parseAmount($("billAmount").value);if(!amount){toast("Informe um valor válido maior que zero.");return;}
@@ -256,7 +271,7 @@
   document.addEventListener("click",async e=>{
     const nav=e.target.closest("[data-view]");if(nav){state.view=nav.dataset.view;render();$("sidebar").classList.remove("open");return;}
     const goto=e.target.closest("[data-goto]");if(goto){state.view=goto.dataset.goto;render();return;}
-    const action=e.target.closest("[data-action]");if(action){const a=action.dataset.action;if(a==="new-transaction")transactionForm();if(a==="new-bill")billForm();if(a==="close-modal")closeModal();if(a==="create-invite")createInvite();if(a==="refresh")refresh();if(a==="export-csv")exportCsv();}
+    const action=e.target.closest("[data-action]");if(action){const a=action.dataset.action;if(a==="new-transaction")transactionForm();if(a==="new-bill")billForm();if(a==="close-modal")closeModal();if(a==="create-invite")createInvite();if(a==="edit-opening-balance")openingBalanceForm();if(a==="refresh")refresh();if(a==="export-csv")exportCsv();}
     const pay=e.target.closest("[data-pay-bill]");if(pay)markBillPaid(pay.dataset.payBill);
     const del=e.target.closest("[data-delete-transaction]");if(del)deleteTransaction(del.dataset.deleteTransaction);
   });
