@@ -1,6 +1,7 @@
 package com.filemon.financeirocaptura
 
 import android.app.Activity
+import android.app.NotificationManager
 import android.app.AlertDialog
 import android.content.ComponentName
 import android.content.Intent
@@ -125,7 +126,7 @@ class MainActivity : Activity() {
     private fun hasNotificationAccess(): Boolean {
         val component = ComponentName(this, CaixaNotificationListener::class.java)
         return if (android.os.Build.VERSION.SDK_INT >= 27) {
-            getSystemService(NotificationListenerService::class.java)
+            getSystemService(NotificationManager::class.java)
                 .isNotificationListenerAccessGranted(component)
         } else {
             Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
